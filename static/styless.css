@@ -1,0 +1,36 @@
+body {
+    font-family: "helvetica", sans-sans-serif;
+    text-align: center;
+    margin: 20px;
+}
+
+table {
+    margin: 10px auto;
+    border-collapse: collapse;
+}
+
+th, td {
+    border: 1px solid black;
+    padding: 8px 12px;
+    text-align: center;
+}
+
+th {
+    background-color: #f0f0f0;
+}
+
+form {
+    margin: 10px auto;
+}
+
+input, select {
+    margin: 3px;
+}
+
+.booked {
+    background-color: #ff9999;
+}
+
+.free {
+    background-color: #99ff99;
+}
