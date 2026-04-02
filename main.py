@@ -40,6 +40,266 @@ templates = Jinja2Templates(directory='templates')
 
 
 
+@app.get("/", response_class=HTMLResponse)
+async def root(request: Request):
+    id_token = request.cookies.get("token")
+    user_token = validateFirebaseToken(id_token)
+
+    if not user_token:
+        return templates.TemplateResponse("main.html", {
+            "request": request,
+            "user_token": None,
+            "error_message": None,
+            "user_info": None,
+            "rooms": None,
+            "user_bookings": None,
+        })
+
+    user = getUser(user_token)
+    rooms = list(room_collection.find({}))
+
+    raw_bookings = booking_collection.find({"user_id": user_token["user_id"]})
+    user_bookings = []
+    for booking in raw_bookings:
+        day = day_collection.find_one({"_id": booking["day_id"]})
+        room = room_collection.find_one({"_id": booking["room_id"]})
+        if day and room:
+            user_bookings.append({
+                "booking": booking,
+                "room_name": room["room_name"],
+                "date": day["date"],
+            })
+    user_bookings.sort(key=lambda x: (x["date"], x["booking"]["start_time"]))
+
+    return templates.TemplateResponse("main.html", {
+        "request": request,
+        "user_token": user_token,
+        "error_message": None,
+        "user_info": user,
+        "rooms": rooms,
+        "user_bookings": user_bookings,
+    })
+
+
+
+@app.post("/add-room", response_class=RedirectResponse)
+async def addRoom(request: Request):
+
+    user_token = validateFirebaseToken(request.cookies.get("token"))
+    if not user_token:
+        return RedirectResponse("/")
+
+    form = await request.form()
+    room_name = form["room_name"].strip()
+
+    if not room_name or room_collection.find_one({"room_name": room_name}):
+        return RedirectResponse("/", status_code=status.HTTP_302_FOUND)
+
+    room_collection.insert_one({
+        "room_name": room_name,
+        "day_list": [],
+        "created_by": user_token["user_id"],
+    })
+
+    return RedirectResponse("/", status_code=status.HTTP_302_FOUND)
+
+
+
+@app.post("/add-booking", response_class=RedirectResponse)
+async def addBooking(request: Request):
+    user_token = validateFirebaseToken(request.cookies.get("token"))
+    if not user_token:
+        return RedirectResponse("/")
+
+    form = await request.form()
+    room_id = ObjectId(form["room_id"])
+    date_str = form["date"]
+    start_time = form["start_time"]
+    end_time = form["end_time"]
+
+    if not date_str or start_time >= end_time:
+        return RedirectResponse("/", status_code=status.HTTP_302_FOUND)
+
+    day = getOrCreateDay(room_id, date_str)
+
+    if checkBookingClash(day["_id"], start_time, end_time):
+        return RedirectResponse("/", status_code=status.HTTP_302_FOUND)
+
+    user = getUser(user_token)
+    new_booking = booking_collection.insert_one({
+        "room_id": room_id,
+        "day_id": day["_id"],
+        "user_id": user_token["user_id"],
+        "user_email": user["email"],
+        "start_time": start_time,
+        "end_time": end_time,
+        "date": date_str,
+    })
+
+    day["booking_list"].append(new_booking.inserted_id)
+    day_collection.find_one_and_update(
+        {"_id": day["_id"]},
+        {"$set": {"booking_list": day["booking_list"]}}
+    )
+
+    return RedirectResponse("/", status_code=status.HTTP_302_FOUND)
+
+
+
+@app.post("/delete-booking", response_class=RedirectResponse)
+async def deleteBooking(request: Request):
+    user_token = validateFirebaseToken(request.cookies.get("token"))
+    if not user_token:
+        return RedirectResponse("/")
+
+    booking_id = ObjectId((await request.form())["booking_id"])
+    booking = booking_collection.find_one({"_id": booking_id})
+
+    if not booking or booking["user_id"] != user_token["user_id"]:
+        return RedirectResponse("/", status_code=status.HTTP_302_FOUND)
+
+    day = day_collection.find_one({"_id": booking["day_id"]})
+    if day and booking_id in day["booking_list"]:
+        day["booking_list"].remove(booking_id)
+        day_collection.find_one_and_update(
+            {"_id": day["_id"]},
+            {"$set": {"booking_list": day["booking_list"]}}
+        )
+
+    booking_collection.delete_one({"_id": booking_id})
+
+    return RedirectResponse("/", status_code=status.HTTP_302_FOUND)
+
+
+
+@app.post("/delete-room", response_class=RedirectResponse)
+async def deleteRoom(request: Request):
+    user_token = validateFirebaseToken(request.cookies.get("token"))
+    if not user_token:
+        return RedirectResponse("/")
+
+    form = await request.form()
+    room_id = ObjectId(form["room_id"])
+
+    room = room_collection.find_one({"_id": room_id})
+    if not room:
+        return RedirectResponse("/", status_code=status.HTTP_302_FOUND)
+
+    if room["created_by"] != user_token["user_id"]:
+        return RedirectResponse("/", status_code=status.HTTP_302_FOUND)
+
+    for day_id in room["day_list"]:
+        day = day_collection.find_one({"_id": day_id})
+        if day and len(day["booking_list"]) > 0:
+            return RedirectResponse("/", status_code=status.HTTP_302_FOUND)
+
+    for day_id in room["day_list"]:
+        day_collection.delete_one({"_id": day_id})
+
+    room_collection.delete_one({"_id": room_id})
+
+    return RedirectResponse("/", status_code=status.HTTP_302_FOUND)
+
+
+
+@app.get("/edit-booking", response_class=HTMLResponse)
+async def editBookingForm(request: Request):
+    user_token = validateFirebaseToken(request.cookies.get("token"))
+    if not user_token:
+        return RedirectResponse("/")
+
+    booking_id = request.query_params.get("booking_id")
+    if not booking_id:
+        return RedirectResponse("/")
+
+    booking = booking_collection.find_one({"_id": ObjectId(booking_id)})
+    if not booking or booking["user_id"] != user_token["user_id"]:
+        return RedirectResponse("/")
+
+    room = room_collection.find_one({"_id": booking["room_id"]})
+    day = day_collection.find_one({"_id": booking["day_id"]})
+
+    return templates.TemplateResponse("edit_booking.html", {
+        "request": request,
+        "user_token": user_token,
+        "booking": booking,
+        "room_name": room["room_name"] if room else "Unknown",
+        "date": day["date"] if day else "Unknown",
+        "error_message": None
+    })
+
+
+
+
+@app.post("/edit-booking", response_class=RedirectResponse)
+async def editBookingPost(request: Request):
+    user_token = validateFirebaseToken(request.cookies.get("token"))
+    if not user_token:
+        return RedirectResponse("/")
+
+    form = await request.form()
+    booking_id = ObjectId(form["booking_id"])
+    new_start = form["start_time"]
+    new_end = form["end_time"]
+    new_date = form["date"]
+
+    booking = booking_collection.find_one({"_id": booking_id})
+    if not booking or booking["user_id"] != user_token["user_id"]:
+        return RedirectResponse("/", status_code=status.HTTP_302_FOUND)
+
+    if new_start >= new_end:
+        return RedirectResponse("/edit-booking?booking_id=" + str(booking_id),
+                                status_code=status.HTTP_302_FOUND)
+
+    old_day = day_collection.find_one({"_id": booking["day_id"]})
+    old_date = old_day["date"] if old_day else ""
+
+    if new_date == old_date:
+        if checkBookingClash(booking["day_id"], new_start, new_end, booking_id):
+            return RedirectResponse("/edit-booking?booking_id=" + str(booking_id),
+                                    status_code=status.HTTP_302_FOUND)
+
+        booking_collection.find_one_and_update(
+            {"_id": booking_id},
+            {"$set": {"start_time": new_start, "end_time": new_end}}
+        )
+
+    else:
+        new_day = getOrCreateDay(booking["room_id"], new_date)
+
+        if checkBookingClash(new_day["_id"], new_start, new_end):
+            return RedirectResponse("/edit-booking?booking_id=" + str(booking_id),
+                                    status_code=status.HTTP_302_FOUND)
+
+        if old_day and booking_id in old_day["booking_list"]:
+            old_day["booking_list"].remove(booking_id)
+            day_collection.find_one_and_update(
+                {"_id": old_day["_id"]},
+                {"$set": {"booking_list": old_day["booking_list"]}}
+            )
+
+        new_day["booking_list"].append(booking_id)
+        day_collection.find_one_and_update(
+            {"_id": new_day["_id"]},
+            {"$set": {"booking_list": new_day["booking_list"]}}
+        )
+
+        booking_collection.find_one_and_update(
+            {"_id": booking_id},
+            {"$set": {
+                "day_id": new_day["_id"],
+                "date": new_date,
+                "start_time": new_start,
+                "end_time": new_end
+            }}
+        )
+
+    return RedirectResponse("/", status_code=status.HTTP_302_FOUND)
+
+
+    
+
+
 def getUser(user_token):
     user = user_collection.find_one({'user_id': user_token['user_id']})
     if not user:
