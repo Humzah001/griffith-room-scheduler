@@ -11,6 +11,7 @@ import datetime
 from bson import ObjectId
 
 
+APP_TITLE = "Griffith Dublin Room Booking"
 
 uri = "mongodb+srv://<user>:<password>@<cluster>.mongodb.net/?appName=<app>"
 
@@ -23,7 +24,10 @@ except Exception as e:
     print(e)
 
 
-app = FastAPI()
+app = FastAPI(
+    title=APP_TITLE,
+    description="Room booking for Griffith College Dublin.",
+)
 
 
 db = client['A01-3181143']
@@ -48,6 +52,7 @@ async def root(request: Request):
     if not user_token:
         return templates.TemplateResponse("main.html", {
             "request": request,
+            "app_title": APP_TITLE,
             "user_token": None,
             "error_message": None,
             "user_info": None,
@@ -73,6 +78,7 @@ async def root(request: Request):
 
     return templates.TemplateResponse("main.html", {
         "request": request,
+        "app_title": APP_TITLE,
         "user_token": user_token,
         "error_message": None,
         "user_info": user,
@@ -221,6 +227,7 @@ async def editBookingForm(request: Request):
 
     return templates.TemplateResponse("edit_booking.html", {
         "request": request,
+        "app_title": APP_TITLE,
         "user_token": user_token,
         "booking": booking,
         "room_name": room["room_name"] if room else "Unknown",

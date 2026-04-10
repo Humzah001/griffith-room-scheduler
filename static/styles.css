@@ -1,0 +1,220 @@
+@import url("styless.css");
+
+/* Occupancy bar (uses <progress> so template engines do not inject into style="..." CSS) */
+.occupancy-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.occupancy-progress {
+    flex: 1;
+    min-width: 0;
+    height: 14px;
+    border: none;
+    border-radius: 4px;
+    overflow: hidden;
+    background: #e8e8e8;
+}
+
+.occupancy-progress::-webkit-progress-bar {
+    background: #e8e8e8;
+    border-radius: 4px;
+}
+
+.occupancy-progress::-webkit-progress-value {
+    background: #4caf50;
+    border-radius: 4px;
+}
+
+.occupancy-progress.medium::-webkit-progress-value {
+    background: #ff9800;
+}
+
+.occupancy-progress.high::-webkit-progress-value {
+    background: #f44336;
+}
+
+.occupancy-progress::-moz-progress-bar {
+    background: #4caf50;
+    border-radius: 4px;
+}
+
+.occupancy-progress.medium::-moz-progress-bar {
+    background: #ff9800;
+}
+
+.occupancy-progress.high::-moz-progress-bar {
+    background: #f44336;
+}
+
+.occupancy-pct {
+    font-weight: 600;
+    min-width: 45px;
+    text-align: right;
+}
+
+/* Layout used by main / view_room / edit_booking templates */
+.navbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    padding: 12px 20px;
+    background: #1a237e;
+    color: #fff;
+    margin: -20px -20px 20px;
+    text-align: left;
+}
+
+.navbar h1 {
+    margin: 0;
+    font-size: 1.25rem;
+}
+
+.user-info {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.btn-logout {
+    padding: 6px 14px;
+    cursor: pointer;
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    background: transparent;
+    color: #fff;
+    border-radius: 4px;
+}
+
+.container {
+    max-width: 1100px;
+    margin: 0 auto;
+    text-align: left;
+}
+
+.grid-2 {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 20px;
+    margin-bottom: 20px;
+}
+
+.card {
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 16px 20px;
+    background: #fafafa;
+}
+
+.form-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 12px;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    text-align: left;
+}
+
+.form-group label {
+    font-size: 0.85rem;
+    margin-bottom: 4px;
+}
+
+.btn-primary,
+.login-buttons button,
+#login-box button {
+    padding: 8px 16px;
+    cursor: pointer;
+    border-radius: 4px;
+    border: none;
+    background: #3949ab;
+    color: #fff;
+}
+
+.btn-danger {
+    padding: 6px 12px;
+    cursor: pointer;
+    border-radius: 4px;
+    border: none;
+    background: #c62828;
+    color: #fff;
+}
+
+.btn-sm {
+    font-size: 0.85rem;
+}
+
+.btn {
+    display: inline-block;
+    padding: 6px 12px;
+    border-radius: 4px;
+    text-decoration: none;
+    font-size: 0.85rem;
+}
+
+.btn-outline {
+    border: 1px solid #3949ab;
+    color: #3949ab;
+    background: #fff;
+}
+
+.btn-secondary {
+    background: #757575;
+    color: #fff;
+    border: none;
+}
+
+.actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    justify-content: center;
+}
+
+.login-container {
+    max-width: 400px;
+    margin: 40px auto;
+    text-align: center;
+}
+
+.subtitle {
+    color: #666;
+    margin-bottom: 20px;
+}
+
+.login-buttons {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    margin-top: 12px;
+}
+
+.back-link {
+    display: inline-block;
+    margin-bottom: 16px;
+    color: #3949ab;
+}
+
+.free-slot-badge {
+    display: inline-block;
+    padding: 10px 18px;
+    background: #e8f5e9;
+    border-radius: 6px;
+    font-weight: 600;
+}
+
+.no-slot-badge {
+    display: inline-block;
+    padding: 10px 18px;
+    background: #ffebee;
+    border-radius: 6px;
+    color: #b71c1c;
+}
