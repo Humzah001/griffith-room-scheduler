@@ -85,7 +85,6 @@ FLASH_OK = {
 
 
 def with_query(url: str, **params) -> str:
-    """Append or merge query string parameters onto url."""
     if "?" in url:
         base, q = url.split("?", 1)
         pairs = dict(parse_qsl(q))
@@ -211,12 +210,16 @@ def build_calendar_data(room_id, dates_5):
 
 
 def earliest_free_slot(room_id, dates_5):
+    now = datetime.datetime.now()
+    today_iso = now.date().isoformat()
+    now_min = now.hour * 60 + now.minute
     for d in dates_5:
         day_doc = day_collection.find_one({"room_id": room_id, "date": d})
         books = bookings_for_day_doc(day_doc)
         for i in range(CALENDAR_SLOT_COUNT):
             slot_start = WORK_START_MIN + i * 60
-            slot_end = slot_start + 60
+            if d == today_iso and slot_start < now_min:
+                continue
             busy, _ = slot_busy(books, i)
             if not busy:
                 return {"date": d, "time": minutes_to_time_str(slot_start)}
@@ -224,7 +227,6 @@ def earliest_free_slot(room_id, dates_5):
 
 
 def all_bookings_for_room(room):
-    """All bookings for this room from the bookings collection (not only day_list)."""
     items = []
     for b in booking_collection.find({"room_id": room["_id"]}):
         day_doc = day_collection.find_one({"_id": b["day_id"]})
@@ -326,7 +328,6 @@ async def system_dashboard(request: Request):
 
 
 def room_name_taken_case_insensitive(name: str) -> bool:
-    """True if any room exists with the same name ignoring ASCII case."""
     n = name.strip()
     if not n:
         return False
