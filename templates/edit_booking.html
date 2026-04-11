@@ -1,17 +1,17 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Edit Booking</title>
+    <title>{% if user_token %}Edit booking{% else %}Sign in{% endif %} — Griffith Room Scheduler</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="/static/styles.css">
-    <script type="module" src="/static/firebase-login.js"></script>
+    <link rel="stylesheet" href="/static/styles.css?v=16">
+    <script type="module" src="/static/firebase-login.js?v=5"></script>
 </head>
-<body>
+<body class="{% if user_token %}app-body page-subview{% else %}page-login page-login--embedded{% endif %}" data-server-auth="{% if user_token %}1{% else %}0{% endif %}" data-after-login="/system">
 
     {% if user_token %}
     <!-- ── Navbar ── -->
     <div class="navbar">
-        <h1>Room Scheduler</h1>
+        <h1><a href="/system" class="navbar-title-link">Griffith Room Scheduler</a></h1>
         <div class="user-info">
             <span>{{ user_token.get('email', '') }}</span>
             <div id="sign-out-box">
@@ -22,72 +22,66 @@
 
     <!-- Hidden login box (needed by JS) -->
     <div id="login-box" hidden>
-        <input id="email" type="email" />
-        <input id="password" type="password" />
-        <button id="login">Login</button>
-        <button id="sign-up">Sign Up</button>
+        <input id="email" type="email" autocomplete="username" />
+        <input id="password" type="password" autocomplete="current-password" />
+        <button type="button" id="login">Login</button>
+        <button type="button" id="sign-up">Sign Up</button>
     </div>
 
     <div class="container">
-        <a href="/" class="back-link">Back to Main Page</a>
+        <nav class="subview-toolbar" aria-label="Section">
+            <a href="/system" class="back-to-dashboard">
+                <span class="back-to-dashboard__chevron" aria-hidden="true">←</span>
+                <span class="back-to-dashboard__text">
+                    <span class="back-to-dashboard__label">Back to dashboard</span>
+                    <span class="back-to-dashboard__hint">Leave without saving changes</span>
+                </span>
+            </a>
+        </nav>
 
-        <div class="card" style="max-width:500px; margin: 20px auto;">
-            <h2>Edit Booking</h2>
-            <p style="margin-bottom:16px; color:#555;">Room: <strong>{{ room_name }}</strong></p>
-
-            <form action="/edit-booking" method="post">
-                <input type="hidden" name="booking_id" value="{{ booking['_id'] }}">
-
-                <div class="form-group" style="margin-bottom:14px;">
-                    <label for="edit_date">Date</label>
-                    <input type="date" id="edit_date" name="date" value="{{ date }}" required>
+        <div class="card edit-booking-card">
+            <div class="edit-booking-card__head">
+                <p class="edit-booking-card__kicker">Update reservation</p>
+                <h1 class="edit-booking-card__title">Edit booking</h1>
+                <p class="edit-booking-card__room">Room: <strong>{{ room_name }}</strong></p>
+            </div>
+            <div class="edit-booking-card__body">
+                {% if flash_message %}
+                <div class="alert {% if flash_kind == 'success' %}alert-success{% else %}alert-error{% endif %}" role="alert" style="margin-bottom: 16px;">
+                    {{ flash_message }}
                 </div>
+                {% endif %}
 
-                <div class="form-group" style="margin-bottom:14px;">
-                    <label for="edit_start">Start Time</label>
-                    <input type="time" id="edit_start" name="start_time" value="{{ booking['start_time'] }}" required>
-                </div>
+                <form action="/edit-booking" method="post" class="edit-booking-form">
+                    <input type="hidden" name="booking_id" value="{{ booking['_id'] }}">
 
-                <div class="form-group" style="margin-bottom:14px;">
-                    <label for="edit_end">End Time</label>
-                    <input type="time" id="edit_end" name="end_time" value="{{ booking['end_time'] }}" required>
-                </div>
+                    <div class="form-group" style="margin-bottom:14px;">
+                        <label for="edit_date">Date</label>
+                        <input type="date" id="edit_date" name="date" value="{{ date }}" required>
+                    </div>
 
-                <div class="form-row" style="margin-top:20px;">
-                    <input type="submit" value="Update Booking" class="btn-primary">
-                    <a href="/" class="btn btn-secondary">Cancel</a>
-                </div>
-            </form>
+                    <div class="form-group" style="margin-bottom:14px;">
+                        <label for="edit_start">Start time</label>
+                        <input type="time" id="edit_start" name="start_time" value="{{ booking['start_time'] }}" step="60" required>
+                    </div>
+
+                    <div class="form-group" style="margin-bottom:14px;">
+                        <label for="edit_end">End time</label>
+                        <input type="time" id="edit_end" name="end_time" value="{{ booking['end_time'] }}" step="60" required>
+                    </div>
+
+                    <div class="form-row edit-booking-form__actions">
+                        <input type="submit" value="Save changes" class="btn-primary">
+                        <a href="/system" class="btn btn-secondary">Cancel</a>
+                    </div>
+                </form>
+            </div>
         </div>
     </div>
 
     {% else %}
-    <!-- ── Login Page ── -->
-    <div class="login-container">
-        <h1>Room Scheduler</h1>
-        <p class="subtitle">Sign in to manage rooms and bookings</p>
-
-        <div class="card">
-            <div id="login-box">
-                <div class="form-group">
-                    <label for="email">Email</label>
-                    <input id="email" type="email" placeholder="you@example.com" />
-                </div>
-                <div class="form-group">
-                    <label for="password">Password</label>
-                    <input id="password" type="password" placeholder="Your password" />
-                </div>
-                <div class="login-buttons">
-                    <button id="login">Login</button>
-                    <button id="sign-up">Sign Up</button>
-                </div>
-            </div>
-        </div>
-
-        <div id="sign-out-box" hidden>
-            <button type="button" id="sign-out">Log out</button>
-        </div>
-    </div>
+    {% include "login_inner.html" %}
+    <p class="login-footer-note">Sign in to edit your bookings.</p>
     {% endif %}
 
 </body>

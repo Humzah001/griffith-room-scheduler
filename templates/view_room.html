@@ -1,17 +1,17 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>View Room</title>
+    <title>{% if user_token %}View room{% else %}Sign in{% endif %} — Griffith Room Scheduler</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="/static/styles.css">
-    <script type="module" src="/static/firebase-login.js"></script>
+    <link rel="stylesheet" href="/static/styles.css?v=17">
+    <script type="module" src="/static/firebase-login.js?v=5"></script>
 </head>
-<body>
+<body class="{% if user_token %}app-body page-subview{% else %}page-login page-login--embedded{% endif %}" data-server-auth="{% if user_token %}1{% else %}0{% endif %}" data-after-login="/system">
 
     {% if user_token %}
     <!-- ── Navbar ── -->
     <div class="navbar">
-        <h1>Room Scheduler</h1>
+        <h1><a href="/system" class="navbar-title-link">Griffith Room Scheduler</a></h1>
         <div class="user-info">
             <span>{{ user_info['email'] }}</span>
             <div id="sign-out-box">
@@ -22,63 +22,105 @@
 
     <!-- Hidden login box (needed by JS) -->
     <div id="login-box" hidden>
-        <input id="email" type="email" />
-        <input id="password" type="password" />
-        <button id="login">Login</button>
-        <button id="sign-up">Sign Up</button>
+        <input id="email" type="email" autocomplete="username" />
+        <input id="password" type="password" autocomplete="current-password" />
+        <button type="button" id="login">Login</button>
+        <button type="button" id="sign-up">Sign Up</button>
     </div>
 
     <div class="container">
-        <a href="/" class="back-link">Back to Main Page</a>
+        <nav class="subview-toolbar" aria-label="Section">
+            <a href="/system" class="back-to-dashboard">
+                <span class="back-to-dashboard__chevron" aria-hidden="true">←</span>
+                <span class="back-to-dashboard__text">
+                    <span class="back-to-dashboard__label">Back to dashboard</span>
+                    <span class="back-to-dashboard__hint">Return to rooms, filters, and your bookings</span>
+                </span>
+            </a>
+        </nav>
 
-        <h2 style="margin: 16px 0 20px; font-size: 1.5rem; color: #333;">{{ room["room_name"] }}</h2>
+        {% if flash_message %}
+        <div class="alert {% if flash_kind == 'success' %}alert-success{% else %}alert-error{% endif %}" role="alert">
+            {{ flash_message }}
+        </div>
+        {% endif %}
 
-        <!-- ── Occupancy + Earliest Free Slot ── -->
-        <div class="grid-2">
-            <div class="card">
-                <h2>Occupancy (Next 5 Days)</h2>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Date</th>
-                            <th>Occupancy</th>
-                        </tr>
-                    </thead>
-                    <tbody>
+        <header class="card room-detail-hero" aria-labelledby="room-detail-title">
+            <div class="room-detail-hero__band">
+                <p class="room-detail-hero__kicker">Room details</p>
+                <h1 class="room-detail-hero__title" id="room-detail-title">{{ room["room_name"] }}</h1>
+                <p class="room-detail-hero__lead">Five-day occupancy, calendar grid, and every booking for this space.</p>
+            </div>
+            <ul class="room-detail-meta" role="list">
+                <li>
+                    <span class="room-detail-meta__key">Room ID</span>
+                    <span class="room-detail-meta__val room-detail-meta__val--mono">{{ room["_id"] }}</span>
+                </li>
+                <li>
+                    <span class="room-detail-meta__key">Bookings listed</span>
+                    <span class="room-detail-meta__val">{{ all_bookings|length }} in this view</span>
+                </li>
+            </ul>
+        </header>
+
+        <!-- ── Occupancy + earliest opening (insight panels) ── -->
+        <div class="room-insights-grid">
+            <article class="room-insight-panel" aria-labelledby="insight-occupancy-title">
+                <div class="room-insight-panel__head">
+                    <span class="room-insight-panel__icon" aria-hidden="true">%</span>
+                    <div class="room-insight-panel__titles">
+                        <h2 class="room-insight-panel__title" id="insight-occupancy-title">Five-day occupancy</h2>
+                        <p class="room-insight-panel__hint">Estimated share of bookable hours filled for each day in the rolling window.</p>
+                    </div>
+                </div>
+                <div class="room-insight-panel__body">
+                    <ul class="occupancy-stack" role="list">
                         {% for item in occupancy_data %}
-                        <tr>
-                            <td>{{ item["date"] }}</td>
-                            <td>
-                                <div class="occupancy-row">
-                                    <progress class="occupancy-progress {% if item['occupancy'] > 80 %}high{% elif item['occupancy'] > 50 %}medium{% endif %}"
-                                              value="{{ item['occupancy'] }}" max="100"></progress>
-                                    <span class="occupancy-pct">{{ item["occupancy"] }}%</span>
-                                </div>
-                            </td>
-                        </tr>
+                        <li class="occupancy-day">
+                            <span class="occupancy-day__date">{{ item["date"] }}</span>
+                            <div class="occupancy-day__track">
+                                <progress class="occupancy-progress occupancy-day__progress {% if item['occupancy'] > 80 %}high{% elif item['occupancy'] > 50 %}medium{% endif %}"
+                                          value="{{ item['occupancy'] }}" max="100" aria-label="Occupancy {{ item['occupancy'] }} percent on {{ item['date'] }}"></progress>
+                            </div>
+                            <span class="occupancy-day__pct">{{ item["occupancy"] }}%</span>
+                        </li>
                         {% endfor %}
-                    </tbody>
-                </table>
-            </div>
+                    </ul>
+                </div>
+            </article>
 
-            <div class="card">
-                <h2>Earliest Free Slot</h2>
-                {% if earliest_free %}
-                    <div style="text-align:center; padding:20px 0;">
-                        <span class="free-slot-badge">{{ earliest_free["date"] }} at {{ earliest_free["time"] }}</span>
+            <article class="room-insight-panel room-insight-panel--slot" aria-labelledby="insight-slot-title">
+                <div class="room-insight-panel__head room-insight-panel__head--accent">
+                    <span class="room-insight-panel__icon room-insight-panel__icon--calendar" aria-hidden="true">&#128197;</span>
+                    <div class="room-insight-panel__titles">
+                        <h2 class="room-insight-panel__title" id="insight-slot-title">Earliest opening</h2>
+                        <p class="room-insight-panel__hint">The first hour that still reads as free across the same five-day outlook.</p>
                     </div>
-                {% else %}
-                    <div style="text-align:center; padding:20px 0;">
-                        <span class="no-slot-badge">No free slot in the next 5 days</span>
+                </div>
+                <div class="room-insight-panel__body room-insight-panel__body--slot">
+                    {% if earliest_free %}
+                    <div class="earliest-slot-highlight">
+                        <span class="earliest-slot-highlight__eyebrow">Next available</span>
+                        <p class="earliest-slot-highlight__date">{{ earliest_free["date"] }}</p>
+                        <p class="earliest-slot-highlight__time">
+                            <span class="earliest-slot-highlight__time-label">From</span>
+                            <span class="earliest-slot-highlight__time-value">{{ earliest_free["time"] }}</span>
+                        </p>
                     </div>
-                {% endif %}
-            </div>
+                    {% else %}
+                    <div class="earliest-slot-empty">
+                        <p class="earliest-slot-empty__title">No opening found</p>
+                        <p class="earliest-slot-empty__text">Every checked slot in the next five days appears taken at this granularity. Try another room or a wider date range in the calendar below.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </article>
         </div>
 
         <!-- ── Room Calendar ── -->
         <div class="card">
             <h2>Room Calendar</h2>
-            <div style="overflow-x:auto;">
+            <div class="table-scroll">
                 <table>
                     <thead>
                         <tr>
@@ -145,32 +187,8 @@
     </div>
 
     {% else %}
-    <!-- ── Login Page ── -->
-    <div class="login-container">
-        <h1>Room Scheduler</h1>
-        <p class="subtitle">Sign in to manage rooms and bookings</p>
-
-        <div class="card">
-            <div id="login-box">
-                <div class="form-group">
-                    <label for="email">Email</label>
-                    <input id="email" type="email" placeholder="you@example.com" />
-                </div>
-                <div class="form-group">
-                    <label for="password">Password</label>
-                    <input id="password" type="password" placeholder="Your password" />
-                </div>
-                <div class="login-buttons">
-                    <button id="login">Login</button>
-                    <button id="sign-up">Sign Up</button>
-                </div>
-            </div>
-        </div>
-
-        <div id="sign-out-box" hidden>
-            <button type="button" id="sign-out">Log out</button>
-        </div>
-    </div>
+    {% include "login_inner.html" %}
+    <p class="login-footer-note">Sign in to open this room from your dashboard.</p>
     {% endif %}
 
 </body>

@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Griffith Room Scheduler</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="/static/styles.css?v=15">
+    <script type="module" src="/static/firebase-login.js?v=5"></script>
+</head>
+<body class="app-body system-dashboard" data-server-auth="1" data-after-login="/system">
+
+    <header class="navbar">
+        <h1><a href="/system" class="navbar-title-link">Griffith Room Scheduler</a></h1>
+        <div class="user-info">
+            <span>{{ user_info['email'] }}</span>
+            <div id="sign-out-box">
+                <button type="button" id="sign-out" class="btn-logout">Log out</button>
+            </div>
+        </div>
+    </header>
+
+    <div id="login-box" hidden>
+        <input id="email" type="email" autocomplete="username" />
+        <input id="password" type="password" autocomplete="current-password" />
+        <button type="button" id="login">Login</button>
+        <button type="button" id="sign-up">Sign Up</button>
+    </div>
+
+    <div class="system-backdrop">
+    <main class="container system-main">
+
+        {% if flash_message %}
+        <div class="alert {% if flash_kind == 'success' %}alert-success{% else %}alert-error{% endif %} system-alert" role="alert">
+            {{ flash_message }}
+        </div>
+        {% endif %}
+
+        <section class="dashboard-hero" aria-label="Overview">
+            <div class="dashboard-hero__text">
+                <p class="dashboard-hero__kicker">Dashboard</p>
+                <p class="dashboard-hero__welcome">Welcome back, <strong>{{ user_info['email'] }}</strong></p>
+                <p class="dashboard-hero__hint">Add rooms, book slots, and manage your schedule in one place.</p>
+            </div>
+            <ul class="dashboard-stats" role="list">
+                <li class="dashboard-stat">
+                    <span class="dashboard-stat__value">{{ rooms|length }}</span>
+                    <span class="dashboard-stat__label">Rooms</span>
+                </li>
+                <li class="dashboard-stat">
+                    <span class="dashboard-stat__value">{{ user_bookings|length }}</span>
+                    <span class="dashboard-stat__label">Your bookings</span>
+                </li>
+            </ul>
+        </section>
+
+        <section class="dashboard-section" aria-labelledby="sec-quick">
+            <div class="dashboard-section__head">
+                <span class="dashboard-section__kicker" id="sec-quick">Get started</span>
+                <h2 class="dashboard-section__title">Quick actions</h2>
+            </div>
+            <div class="dashboard-grid dashboard-grid--actions">
+                <article class="card action-panel">
+                    <div class="action-panel__head">
+                        <span class="action-panel__icon" aria-hidden="true">+</span>
+                        <div class="action-panel__titles">
+                            <h3 class="action-panel__title">Add a room</h3>
+                            <p class="action-panel__hint">Register a new space others can book. Names should be easy to recognise.</p>
+                        </div>
+                    </div>
+                    <form class="action-panel__form" action="/add-room" method="post">
+                        <div class="action-panel__body">
+                            <div class="form-group action-panel__field-full">
+                                <label for="room_name">Room name</label>
+                                <input type="text" id="room_name" name="room_name" placeholder="e.g. Seminar Room B, Lab 3…" required autocomplete="off" />
+                            </div>
+                        </div>
+                        <div class="action-panel__footer">
+                            <input type="submit" value="Create room" class="btn-primary action-panel__btn" />
+                        </div>
+                    </form>
+                </article>
+
+                <article class="card action-panel action-panel--booking">
+                    <div class="action-panel__head">
+                        <span class="action-panel__icon action-panel__icon--calendar" aria-hidden="true">&#128197;</span>
+                        <div class="action-panel__titles">
+                            <h3 class="action-panel__title">Book a room</h3>
+                            <p class="action-panel__hint">Pick a room, date, and time window. End time must be after start.</p>
+                        </div>
+                    </div>
+                    <form class="action-panel__form" action="/add-booking" method="post">
+                        <div class="action-panel__body action-panel__body--booking">
+                            <div class="form-group action-panel__field-full">
+                                <label for="book_room">Room</label>
+                                <select id="book_room" name="room_id" required>
+                                    <option value="">Choose a room…</option>
+                                    {% for room in rooms %}
+                                    <option value="{{ room['_id'] }}">{{ room["room_name"] }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="action-panel__booking-grid">
+                                <div class="form-group">
+                                    <label for="book_date">Date</label>
+                                    <input type="date" id="book_date" name="date" required />
+                                </div>
+                                <div class="form-group">
+                                    <label for="book_start">Start time</label>
+                                    <input type="time" id="book_start" name="start_time" step="60" required />
+                                </div>
+                                <div class="form-group">
+                                    <label for="book_end">End time</label>
+                                    <input type="time" id="book_end" name="end_time" step="60" required />
+                                </div>
+                            </div>
+                        </div>
+                        <div class="action-panel__footer">
+                            <input type="submit" value="Book slot" class="btn-primary action-panel__btn" />
+                        </div>
+                    </form>
+                </article>
+            </div>
+        </section>
+
+        <section class="dashboard-section" aria-labelledby="sec-rooms">
+            <div class="dashboard-section__head">
+                <span class="dashboard-section__kicker" id="sec-rooms">Directory</span>
+                <h2 class="dashboard-section__title">All rooms</h2>
+            </div>
+            {% if rooms %}
+            <div class="room-grid" role="list">
+                {% for room in rooms %}
+                <article class="room-tile" role="listitem">
+                    <div class="room-tile__header">
+                        <span class="room-tile__name">{{ room["room_name"] }}</span>
+                        {% if room["created_by"] == user_token["user_id"] %}
+                        <span class="room-tile__badge">Your room</span>
+                        {% endif %}
+                    </div>
+                    <div class="room-tile__footer">
+                        <div class="actions">
+                            <a href="/view-room?room_id={{ room['_id'] }}" class="btn btn-outline btn-sm">View</a>
+                            {% if room["created_by"] == user_token["user_id"] %}
+                            <form action="/delete-room" method="post">
+                                <input type="hidden" name="room_id" value="{{ room['_id'] }}">
+                                <input type="submit" value="Delete" class="btn-danger btn-sm">
+                            </form>
+                            {% endif %}
+                        </div>
+                    </div>
+                </article>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="dashboard-empty dashboard-empty--boxed">No rooms yet. Add one above to get started.</p>
+            {% endif %}
+        </section>
+
+        <section class="dashboard-section" aria-labelledby="sec-filters">
+            <div class="dashboard-section__head">
+                <span class="dashboard-section__kicker" id="sec-filters">Insights</span>
+                <h2 class="dashboard-section__title">Filters</h2>
+            </div>
+            <div class="dashboard-grid dashboard-grid--filters">
+                <article class="card filter-panel">
+                    <div class="filter-panel__head">
+                        <span class="filter-panel__icon" aria-hidden="true">&#128467;</span>
+                        <div class="filter-panel__titles">
+                            <h3 class="filter-panel__title">By day</h3>
+                            <p class="filter-panel__hint">See every booking on a chosen date</p>
+                        </div>
+                    </div>
+                    <form class="filter-panel__toolbar" action="/filter-by-day" method="post">
+                        <div class="form-group filter-panel__field">
+                            <label for="filter_date">Pick a date</label>
+                            <input type="date" id="filter_date" name="filter_date" value="{{ filter_date or '' }}" required />
+                        </div>
+                        <input type="submit" value="Show bookings" class="btn-primary filter-panel__submit" />
+                    </form>
+                    {% if filter_date %}
+                    <div class="filter-panel__results">
+                        <p class="filter-panel__results-label">Bookings on <strong>{{ filter_date }}</strong></p>
+                        {% if filtered_bookings %}
+                        <ul class="result-stack" role="list">
+                            {% for item in filtered_bookings %}
+                            <li class="result-row" role="listitem">
+                                <span class="result-row__room">{{ item["room_name"] }}</span>
+                                <span class="result-row__user">{{ item["booking"]["user_email"] }}</span>
+                                <span class="result-row__time">{{ item["booking"]["start_time"] }} – {{ item["booking"]["end_time"] }}</span>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                        {% else %}
+                        <p class="dashboard-empty">No bookings on this day.</p>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </article>
+
+                <article class="card filter-panel">
+                    <div class="filter-panel__head">
+                        <span class="filter-panel__icon" aria-hidden="true">&#128205;</span>
+                        <div class="filter-panel__titles">
+                            <h3 class="filter-panel__title">By room</h3>
+                            <p class="filter-panel__hint">Your bookings in one place</p>
+                        </div>
+                    </div>
+                    <form class="filter-panel__toolbar" action="/filter-by-room" method="post">
+                        <div class="form-group filter-panel__field filter-panel__field--grow">
+                            <label for="filter_room">Choose a room</label>
+                            <select id="filter_room" name="room_id" required>
+                                <option value="">Select room</option>
+                                {% for room in rooms %}
+                                <option value="{{ room['_id'] }}" {% if filter_room_id is defined and filter_room_id and room['_id']|string == filter_room_id %}selected{% endif %}>{{ room["room_name"] }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <input type="submit" value="Show my bookings" class="btn-primary filter-panel__submit" />
+                    </form>
+                    {% if filter_room_id %}
+                    <div class="filter-panel__results">
+                        <p class="filter-panel__results-label">Your slots in this room</p>
+                        {% if room_user_bookings %}
+                        <ul class="result-stack" role="list">
+                            {% for item in room_user_bookings %}
+                            <li class="result-row result-row--mine" role="listitem">
+                                <span class="result-row__room">{{ item["room_name"] }}</span>
+                                <span class="result-row__date">{{ item["date"] }}</span>
+                                <span class="result-row__time">{{ item["booking"]["start_time"] }} – {{ item["booking"]["end_time"] }}</span>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                        {% else %}
+                        <p class="dashboard-empty">You have no bookings in this room.</p>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </article>
+            </div>
+        </section>
+
+        <section class="dashboard-section" aria-labelledby="sec-mine">
+            <div class="dashboard-section__head">
+                <span class="dashboard-section__kicker" id="sec-mine">Your schedule</span>
+                <h2 class="dashboard-section__title">My bookings</h2>
+            </div>
+            {% if user_bookings %}
+            <div class="booking-stack" role="list">
+                {% for item in user_bookings %}
+                <article class="booking-card" role="listitem">
+                    <div class="booking-card__main">
+                        <div class="booking-card__primary">
+                            <span class="booking-card__room">{{ item["room_name"] }}</span>
+                            <time class="booking-card__date" datetime="{{ item['date'] }}">{{ item["date"] }}</time>
+                        </div>
+                        <div class="booking-card__slot">
+                            <span class="booking-card__time">{{ item["booking"]["start_time"] }}</span>
+                            <span class="booking-card__sep" aria-hidden="true">→</span>
+                            <span class="booking-card__time">{{ item["booking"]["end_time"] }}</span>
+                        </div>
+                    </div>
+                    <div class="booking-card__actions">
+                        <div class="actions">
+                            <a href="/edit-booking?booking_id={{ item['booking']['_id'] }}" class="btn btn-outline btn-sm">Edit</a>
+                            <form action="/delete-booking" method="post">
+                                <input type="hidden" name="booking_id" value="{{ item['booking']['_id'] }}">
+                                <input type="submit" value="Delete" class="btn-danger btn-sm">
+                            </form>
+                        </div>
+                    </div>
+                </article>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="dashboard-empty dashboard-empty--boxed">You have no bookings yet. Book a room above.</p>
+            {% endif %}
+        </section>
+
+    </main>
+    </div>
+
+</body>
+</html>

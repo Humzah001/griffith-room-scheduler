@@ -1,0 +1,45 @@
+{# Shared login UI: include from login.html and guest branches on other pages #}
+<div class="login-layout">
+    <header class="login-layout__header">
+        <img src="/static/images/griffith-logo.webp" alt="Griffith College" class="login-layout__crest">
+        <div class="login-layout__titles">
+            <span class="login-layout__college">Griffith College</span>
+            <h1 class="login-layout__app">{{ app_title|default('Griffith Room Scheduler') }}</h1>
+            <p class="login-layout__tagline">Sign in to manage rooms and bookings</p>
+        </div>
+    </header>
+
+    <div class="login-layout__main">
+        <div class="login-layout__panel">
+            {% if flash_message %}
+            <div class="alert {% if flash_kind == 'success' %}alert-success{% else %}alert-error{% endif %}" role="alert">
+                {{ flash_message }}
+            </div>
+            {% endif %}
+
+            <div class="card login-card">
+                <h2 class="login-card__heading">Login</h2>
+                <div id="login-box">
+                    <form id="firebase-guest-form" autocomplete="on" onsubmit="return false;">
+                        <div class="form-group">
+                            <label for="email">Email</label>
+                            <input id="email" name="email" type="email" placeholder="you@example.com" autocomplete="username" required />
+                        </div>
+                        <div class="form-group">
+                            <label for="password">Password</label>
+                            <input id="password" name="password" type="password" placeholder="Your password" autocomplete="current-password" required />
+                        </div>
+                        <div class="login-buttons">
+                            <button type="button" id="login" class="btn-login-primary">Login</button>
+                            <button type="button" id="sign-up" class="btn-login-secondary">Sign up</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="sign-out-box" hidden>
+        <button type="button" id="sign-out">Log out</button>
+    </div>
+</div>

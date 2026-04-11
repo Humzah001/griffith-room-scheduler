@@ -1,7 +1,7 @@
 body {
-    font-family: "helvetica", sans-sans-serif;
+    font-family: "Segoe UI", system-ui, sans-serif;
     text-align: center;
-    margin: 20px;
+    margin: 0;
 }
 
 table {
@@ -16,7 +16,8 @@ th, td {
 }
 
 th {
-    background-color: #f0f0f0;
+    background-color: #fbe9ec;
+    color: #5c0e22;
 }
 
 form {
