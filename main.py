@@ -152,7 +152,7 @@ def overlap_work_minutes(start_time: str, end_time: str) -> int:
 
 
 def calendar_hour_labels():
-    return [f"{h:02d}:00" for h in range(9, 18)]
+    return [f"{h:02d}:00–{h + 1:02d}:00" for h in range(9, 18)]
 
 
 def bookings_for_day_doc(day_doc):
