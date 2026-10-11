@@ -35,7 +35,6 @@ app = FastAPI(
 
 @app.middleware("http")
 async def disable_html_caching(request: Request, call_next):
-    """HTML for this app depends on the session cookie; avoid serving a stale guest page after login."""
     response = await call_next(request)
     content_type = response.headers.get("content-type", "")
     if content_type.partition(";")[0].strip().lower() == "text/html":
@@ -56,6 +55,8 @@ FLASH_ERRORS = {
     "room_empty": "Please enter a room name.",
     "booking_clash": "That time overlaps another booking for this room.",
     "booking_time": "End time must be after start time.",
+    "booking_past_date": "You cannot book for a date in the past.",
+    "booking_past_time": "That start time has already passed. Choose a later time or another day.",
     "booking_fields": "Please choose a room, date, and valid start and end times.",
     "booking_room": "Please select a room from the list.",
     "booking_room_invalid": "Invalid room selection.",
@@ -69,6 +70,8 @@ FLASH_ERRORS = {
     "edit_time": "End time must be after start time.",
     "edit_clash": "That time overlaps another booking for this room.",
     "edit_fields": "Please enter valid date and times.",
+    "edit_past_date": "You cannot move a booking to a date in the past.",
+    "edit_past_time": "That start time has already passed. Choose a later time or another day.",
     "room_not_found": "That room was not found.",
     "room_bad_link": "Invalid room link. Open the room from the list again.",
     "filter_date": "Please choose a date to filter by.",
@@ -137,6 +140,38 @@ def time_to_minutes(t: str) -> int:
     t = normalize_time(t)
     h, m = map(int, t.split(":"))
     return h * 60 + m
+
+
+def booking_start_datetime(date_str: str, start_time: str):
+    try:
+        d = datetime.date.fromisoformat(date_str.strip())
+        st = normalize_time(start_time)
+        h, m = map(int, st.split(":"))
+        return datetime.datetime.combine(d, datetime.time(hour=h, minute=m))
+    except (ValueError, TypeError, IndexError):
+        return None
+
+
+def past_booking_flash_key(date_str: str, start_time: str):
+    start_dt = booking_start_datetime(date_str, start_time)
+    if start_dt is None:
+        return None
+    if start_dt.date() < datetime.date.today():
+        return "booking_past_date"
+    if start_dt < datetime.datetime.now():
+        return "booking_past_time"
+    return None
+
+
+def past_booking_edit_flash_key(date_str: str, start_time: str):
+    start_dt = booking_start_datetime(date_str, start_time)
+    if start_dt is None:
+        return None
+    if start_dt.date() < datetime.date.today():
+        return "edit_past_date"
+    if start_dt < datetime.datetime.now():
+        return "edit_past_time"
+    return None
 
 
 def minutes_to_time_str(mins: int) -> str:
@@ -408,6 +443,13 @@ async def addBooking(request: Request):
     if time_to_minutes(start_time) >= time_to_minutes(end_time):
         return RedirectResponse(
             with_query(APP_HOME, err="booking_time"),
+            status_code=status.HTTP_302_FOUND,
+        )
+
+    past_err = past_booking_flash_key(date_str, start_time)
+    if past_err:
+        return RedirectResponse(
+            with_query(APP_HOME, err=past_err),
             status_code=status.HTTP_302_FOUND,
         )
 
@@ -733,6 +775,13 @@ async def editBookingPost(request: Request):
     if time_to_minutes(new_start) >= time_to_minutes(new_end):
         return RedirectResponse(
             with_query(f"/edit-booking?booking_id={booking_id}", err="edit_time"),
+            status_code=status.HTTP_302_FOUND,
+        )
+
+    past_err = past_booking_edit_flash_key(new_date, new_start)
+    if past_err:
+        return RedirectResponse(
+            with_query(f"/edit-booking?booking_id={booking_id}", err=past_err),
             status_code=status.HTTP_302_FOUND,
         )
 
