@@ -6,6 +6,7 @@ import google.oauth2.id_token
 from google.auth.transport import requests
 from pymongo.mongo_client import MongoClient
 from pymongo.server_api import ServerApi
+import os
 import re
 import starlette.status as status
 import datetime
@@ -16,7 +17,12 @@ from bson import ObjectId
 APP_TITLE = "Griffith Room Scheduler"
 APP_HOME = "/system"
 
-uri = "mongodb+srv://<user>:<password>@<cluster>.mongodb.net/?appName=<app>"
+uri = os.environ.get("MONGODB_URI")
+if not uri:
+    raise RuntimeError(
+        "MONGODB_URI is not set. Export it before starting the app, e.g.\n"
+        '  export MONGODB_URI="mongodb+srv://<user>:<password>@<cluster>/?appName=<app>"'
+    )
 
 client = MongoClient(uri, server_api=ServerApi('1'))
 
